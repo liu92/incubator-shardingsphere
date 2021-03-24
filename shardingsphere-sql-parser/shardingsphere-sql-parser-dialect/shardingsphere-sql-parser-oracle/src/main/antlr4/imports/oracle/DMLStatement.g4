@@ -17,7 +17,7 @@
 
 grammar DMLStatement;
 
-import Symbol, Keyword, OracleKeyword, Literals, BaseRule;
+import Symbol, Keyword, OracleKeyword, Literals, BaseRule, Comments;
 
 insert
     : INSERT (insertSingleTable | insertMultiTable)
@@ -56,10 +56,10 @@ insertValuesClause
     ;
 
 update
-    : UPDATE updateSpecification_? tableReferences setAssignmentsClause whereClause?
+    : UPDATE updateSpecification? tableReferences setAssignmentsClause whereClause?
     ;
 
-updateSpecification_
+updateSpecification
     : ONLY
     ;
 
@@ -81,10 +81,10 @@ assignmentValue
     ;
 
 delete
-    : DELETE deleteSpecification_? (singleTableClause | multipleTablesClause) whereClause?
+    : DELETE deleteSpecification? (singleTableClause | multipleTablesClause) whereClause?
     ;
 
-deleteSpecification_
+deleteSpecification
     : ONLY
     ;
 
@@ -109,7 +109,7 @@ unionClause
     ;
 
 selectClause
-    : SELECT duplicateSpecification? projections fromClause? whereClause? groupByClause? havingClause? orderByClause?
+    : SELECT duplicateSpecification? projections fromClause? whereClause? groupByClause? havingClause? orderByClause? lockClause?
     ;
 
 duplicateSpecification
@@ -149,7 +149,7 @@ tableReference
     ;
 
 tableFactor
-    : tableName (AS? alias)? | subquery AS? alias columnNames? | LP_ tableReferences RP_
+    : tableName (AS? alias)? | subquery AS? alias? columnNames? | LP_ tableReferences RP_
     ;
 
 joinedTable
@@ -175,4 +175,52 @@ havingClause
 
 subquery
     : LP_ unionClause RP_
+    ;
+        
+lockClause
+    : FOR UPDATE 
+    ;
+
+merge
+    : MERGE hint? intoClause usingClause mergeUpdateClause? mergeInsertClause? errorLoggingClause?
+    ;
+
+hint
+    : (BLOCK_COMMENT | INLINE_COMMENT)
+    ;
+
+intoClause
+    : INTO (tableName | viewName) alias?
+    ;
+
+usingClause
+    : USING ((tableName | viewName) | subquery) alias? ON LP_ expr RP_
+    ;
+
+mergeUpdateClause
+    : WHEN MATCHED THEN UPDATE SET mergeAssignment (COMMA_ mergeAssignment)* whereClause? (DELETE whereClause)?
+    ;
+
+mergeAssignment
+    : columnName EQ_ mergeAssignmentValue
+    ;
+
+mergeAssignmentValue
+    : (expr | DEFAULT)
+    ;
+
+mergeInsertClause
+    : WHEN NOT MATCHED THEN INSERT mergeInsertColumn? mergeColumnValue whereClause?
+    ;
+
+mergeInsertColumn
+    : LP_ columnName (COMMA_ columnName)* RP_
+    ;
+
+mergeColumnValue
+    : VALUES LP_ (expr | DEFAULT) (COMMA_ (expr | DEFAULT))* RP_
+    ;
+
+errorLoggingClause
+    : LOG ERRORS (INTO tableName)? (LP_ simpleExpr RP_)? (REJECT LIMIT (numberLiterals | UNLIMITED))?
     ;
